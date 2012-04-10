@@ -9,6 +9,29 @@ var app = root();
 var now = function() {
 	return (Date.now() / 1000) | 0;
 };
+var referer = function(userid, callback) {
+	var split = userid.split('-');
+	var ref = ((split[0] !== 'user' && split[0] !== 'anon') ? '' : split[2]);
+
+	if (!ref) {
+		callback();
+		return;
+	}
+
+	common.step([
+		function(next) {
+			db.shares.findOne({ sharename: ref }, { userid: 1 }, next);
+		},
+		function(share) {
+			if (!share) {
+				callback();
+				return;
+			}
+
+			callback(null, share.userid);
+		}
+	], callback);
+};
 
 app.use(root.log);
 app.use(root.json);
@@ -92,9 +115,9 @@ app.auth.post('/event', function(request, response) {
 	], response.json);
 });
 
-app.auth.post('/user/update', function(request, response) {
+/*app.auth.post('/user/update', function(request, response) {
 	db.analytics.update({userid:request.userid}, {$set:request.json}, response.ack.bind(response));
-});
+});*/
 
 app.auth.post('/merge', function(request, response) {
 	var mergeuserid = request.json.mergeuserid;
@@ -143,31 +166,6 @@ app.internal.post('/inactive', function(request, response) {
 	], response.json);
 });
 
-var findRefUser = function(userid, callback) {
-	var parseSharename = function(landingpage) {
-		return landingpage && (landinpage.match(/\/(\d[^\/]+)/) || [])[1];
-	};
-
-	common.step([
-		function(next) {
-			db.analytics.findOne({userid:userid}, {landingpage:1}, next);
-		},
-		function(user, next) {
-			var refshare = parseSharename(user.landingpage);
-
-			if (!refshare) {
-				callback(null, null);
-				return;
-			}
-
-			db.shares.findOne({sharename:refshare}, {userid:1}, next);
-		},
-		function(share) {
-			callback(null, share && share.userid);
-		}
-	], callback);
-};
-
 services.subscribe('blob/put', {readyState:'transferring'}, function(file) {
 	var userid;
 
@@ -188,7 +186,7 @@ services.subscribe('blob/put', {readyState:'transferring'}, function(file) {
 				return;
 			}
 
-			findRefUser(user.userid, next);
+			referer(user.userid, next);
 		},
 		function(refUserid) {
 			if (!refUserid) {
@@ -213,15 +211,16 @@ services.subscribe('frontend/signup', function(user) {
 
 	common.step([
 		function(next) {
-			analytics(user.userid).post('/user/update', {
-				landingpage: user.landingpage,
-				signupmethod: user.signupmethod
-			}, next);
+			db.analytics.update({ userid: user.userid }, { $set: { signupmethod: user.signupmethod } }, next);
 		},
 		function(next) {
-			findRefUser(user.userid, next);
+			referer(user.userid, next);
 		},
 		function(refUserid) {
+			if (!refUserid) {
+				return;
+			}
+
 			analytics(refUserid).post('/event', {name:'extSignup'});
 		}
 	]);
