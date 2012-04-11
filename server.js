@@ -228,7 +228,7 @@ services.subscribe('frontend/signup', function(user) {
 	]);
 });
 
-app.internal.get('/digest', function(request, response) {
+app.internal.get(['/digest','/digest.html'], function(request, response) {
 	var map = function() {
 		var sub = function(a,be) {
 			var real = {};
@@ -276,10 +276,9 @@ app.internal.get('/digest', function(request, response) {
 
 		return res;
 	};
-	var csvify = function(tests) {
+	var mergeProps = function(tests) {
 		var props = ['count', 'upload', 'share', 'email', 'signup', 'extView', 'extUpload', 'extSignup'];
 		var extraProps = [];
-		var res = '';
 
 		tests.forEach(function(test) {
 			Object.keys(test.value).forEach(function(val) {
@@ -289,8 +288,11 @@ app.internal.get('/digest', function(request, response) {
 			});
 		});
 
-		props = props.concat(extraProps.sort());
-		res += 'name,'+props.join(',') + '\n';
+		return props.concat(extraProps.sort());
+	};
+	var csvify = function(tests) {
+		var props = mergeProps(tests);
+		var res = 'name,'+props.join(',') + '\n';
 
 		tests.forEach(function(test) {
 			res += test._id+','+props.map(function(prop) {
@@ -300,6 +302,18 @@ app.internal.get('/digest', function(request, response) {
 
 		return res;
 	};
+	var htmlify = function(tests) {
+		var props = mergeProps(tests);
+		var res = '<html><head><title>Microsoft Parental Analytics</title></head></head><body><table><tr><th>name</th><th>' + props.join('</th><th>') + '</th></tr>';
+
+		tests.forEach(function(test) {
+			res += '<tr><td>' + test._id + '</td><td>' + props.map(function(prop) {
+				return test.value[prop] || '0';
+			}).join('</td><td>') + '</td></tr>';
+		});
+
+		return res + '</table></body></html>';
+	}
 
 	common.step([
 		function(next) {
@@ -317,6 +331,13 @@ app.internal.get('/digest', function(request, response) {
 			db.abdigest.find(next);
 		},
 		function(doc) {
+			if (request.url.indexOf('/digest.html') === 0) {
+				response.setHeader('content-type','text/html');
+				response.end(htmlify(doc));
+
+				return;	
+			}
+
 			response.setHeader('content-type','text/plain');
 			response.end(csvify(doc));
 		}
