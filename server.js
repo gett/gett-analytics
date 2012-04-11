@@ -209,23 +209,27 @@ services.subscribe('api/sendmail', function(mail) {
 });
 
 services.subscribe('frontend/signup', function(user) {
-	analytics(user.userid).post('/event', {name:'signup'});
+	// We postpone this to ensure that its called after potential merges
+	// (maybe look into the whole signup/merge flow, to see if this can be fixed architectually)
+	setTimeout(function() {
+		analytics(user.userid).post('/event', {name:'signup'});
 
-	common.step([
-		function(next) {
-			db.analytics.update({ userid: user.userid }, { $set: { signupmethod: user.signupmethod } }, next);
-		},
-		function(next) {
-			referer(user.userid, next);
-		},
-		function(refUserid) {
-			if (!refUserid) {
-				return;
+		common.step([
+			function(next) {
+				db.analytics.update({ userid: user.userid }, { $set: { signupmethod: user.signupmethod } }, next);
+			},
+			function(next) {
+				referer(user.userid, next);
+			},
+			function(refUserid) {
+				if (!refUserid) {
+					return;
+				}
+
+				analytics(refUserid).post('/event', {name:'extSignup'});
 			}
-
-			analytics(refUserid).post('/event', {name:'extSignup'});
-		}
-	]);
+		]);
+	}, 5000);
 });
 
 app.internal.get('/digest/:type?', function(request, response) {
