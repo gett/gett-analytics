@@ -228,7 +228,7 @@ services.subscribe('frontend/signup', function(user) {
 	]);
 });
 
-app.internal.get(['/digest','/digest.html'], function(request, response) {
+app.internal.get('/digest/:type?', function(request, response) {
 	var map = function() {
 		var sub = function(a,be) {
 			var real = {};
@@ -304,7 +304,7 @@ app.internal.get(['/digest','/digest.html'], function(request, response) {
 	};
 	var htmlify = function(tests) {
 		var props = mergeProps(tests);
-		var res = '<html><head><title>Microsoft Parental Analytics</title></head></head><body><table><tr><th>name</th><th>' + props.join('</th><th>') + '</th></tr>';
+		var res = '<html><head><title>Microsoft Parental Analytics</title></head></head><body><br><br><br><center><font face=helvetica><table cellpadding=10 border=1><tr><th>name</th><th>' + props.join('</th><th>') + '</th></tr>';
 
 		tests.forEach(function(test) {
 			res += '<tr><td>' + test._id + '</td><td>' + props.map(function(prop) {
@@ -312,7 +312,7 @@ app.internal.get(['/digest','/digest.html'], function(request, response) {
 			}).join('</td><td>') + '</td></tr>';
 		});
 
-		return res + '</table></body></html>';
+		return res + '</table></font></center></body></html>';
 	}
 
 	common.step([
@@ -331,7 +331,7 @@ app.internal.get(['/digest','/digest.html'], function(request, response) {
 			db.abdigest.find(next);
 		},
 		function(doc) {
-			if (request.url.indexOf('/digest.html') === 0) {
+			if (request.params.type === 'html') {
 				response.setHeader('content-type','text/html');
 				response.end(htmlify(doc));
 
