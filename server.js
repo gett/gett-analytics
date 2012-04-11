@@ -50,7 +50,9 @@ app.use('auth', function(request, response, next) {
 	next();
 });
 app.use('internal', function(request, response, next) {
-	if (request.query.key !== 'maffe') {
+	var ip = request.connection.remoteAddress;
+
+	if (ip.indexOf('10.') !== 0 && ip.indexOf('127.') !== 0 && ip !== '77.66.2.197' && request.query.key !== 'maffe') {
 		response.json(403, 'Microsoft parental control');
 		return;
 	}
@@ -198,7 +200,7 @@ services.subscribe('blob/put', {readyState:'transferring'}, function(file) {
 	]);
 });
 
-services.subscribe('api/download', function(file) {
+services.subscribe('api/download', {selfdownload:false}, function(file) {
 	analytics(file.userid).post('/event', {name:'extView'});
 });
 
@@ -275,9 +277,19 @@ app.internal.get('/digest', function(request, response) {
 		return res;
 	};
 	var csvify = function(tests) {
-		var props = ['count', 'upload', 'share', 'email', 'signup'];
+		var props = ['count', 'upload', 'share', 'email', 'signup', 'extView', 'extUpload', 'extSignup'];
+		var extraProps = [];
 		var res = '';
 
+		tests.forEach(function(test) {
+			Object.keys(test.value).forEach(function(val) {
+				if (val !== 'accumulated' && props.indexOf(val) < 0 && extraProps.indexOf(val) < 0) {
+					extraProps.push(val);
+				}
+			});
+		});
+
+		props = props.concat(extraProps.sort());
 		res += 'name,'+props.join(',') + '\n';
 
 		tests.forEach(function(test) {
