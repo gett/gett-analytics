@@ -240,6 +240,10 @@ app.internal.get('/digest', function(request, response) {
 
 		var events = this.events;
 
+		if(!this.tests) {
+			return;
+		}
+
 		this.tests.forEach(function(test) {
 			var trackname = test.name+'.'+test.track;
 			var result = {count:1,accumulated:{}};
