@@ -328,8 +328,13 @@ app.internal.get('/digest/:type?', function(request, response) {
 				merged: {$ne:true}
 			};
 
-			if (request.params.type === 'anon') {
+			if (request.query.anon) {
 				query.userid = /^anon/;
+			}
+			if (request.query.condition) {
+				var cond = request.query.condition;
+
+				query['events.'+cond] = {$exists:true};
 			}
 
 			db.analytics.mapReduce(map, reduce, {
