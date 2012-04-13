@@ -314,3 +314,7 @@ app.internal.get('/digest', function(request, response) {
 app.listen(9044, function() {
 	services.join({name:'analytics', internal:app.address().port})
 });
+
+process.on('uncaughtException', function(err) {
+	console.error(err.stack);
+});
