@@ -50,7 +50,9 @@ app.use('auth', function(request, response, next) {
 	next();
 });
 app.use('internal', function(request, response, next) {
-	if (request.query.key !== 'maffe') {
+	var ip = request.connection.remoteAddress;
+
+	if (ip.indexOf('10.') !== 0 && ip.indexOf('127.') !== 0 && ip !== '77.66.2.197' && request.query.key !== 'maffe') {
 		response.json(403, 'Microsoft parental control');
 		return;
 	}
@@ -198,7 +200,7 @@ services.subscribe('blob/put', {readyState:'transferring'}, function(file) {
 	]);
 });
 
-services.subscribe('api/download', function(file) {
+services.subscribe('api/download', {selfdownload:false}, function(file) {
 	analytics(file.userid).post('/event', {name:'extView'});
 });
 
@@ -207,26 +209,30 @@ services.subscribe('api/sendmail', function(mail) {
 });
 
 services.subscribe('frontend/signup', function(user) {
-	analytics(user.userid).post('/event', {name:'signup'});
+	// We postpone this to ensure that its called after potential merges
+	// (maybe look into the whole signup/merge flow, to see if this can be fixed architectually)
+	setTimeout(function() {
+		analytics(user.userid).post('/event', {name:'signup'});
 
-	common.step([
-		function(next) {
-			db.analytics.update({ userid: user.userid }, { $set: { signupmethod: user.signupmethod } }, next);
-		},
-		function(next) {
-			referer(user.userid, next);
-		},
-		function(refUserid) {
-			if (!refUserid) {
-				return;
+		common.step([
+			function(next) {
+				db.analytics.update({ userid: user.userid }, { $set: { signupmethod: user.signupmethod } }, next);
+			},
+			function(next) {
+				referer(user.userid, next);
+			},
+			function(refUserid) {
+				if (!refUserid) {
+					return;
+				}
+
+				analytics(refUserid).post('/event', {name:'extSignup'});
 			}
-
-			analytics(refUserid).post('/event', {name:'extSignup'});
-		}
-	]);
+		]);
+	}, 5000);
 });
 
-app.internal.get('/digest', function(request, response) {
+app.internal.get('/digest/:type?', function(request, response) {
 	var map = function() {
 		var sub = function(a,be) {
 			var real = {};
@@ -274,11 +280,23 @@ app.internal.get('/digest', function(request, response) {
 
 		return res;
 	};
-	var csvify = function(tests) {
-		var props = ['count', 'upload', 'share', 'email', 'signup'];
-		var res = '';
+	var mergeProps = function(tests) {
+		var props = ['count', 'upload', 'share', 'email', 'signup', 'extView', 'extUpload', 'extSignup'];
+		var extraProps = [];
 
-		res += 'name,'+props.join(',') + '\n';
+		tests.forEach(function(test) {
+			Object.keys(test.value).forEach(function(val) {
+				if (val !== 'accumulated' && props.indexOf(val) < 0 && extraProps.indexOf(val) < 0) {
+					extraProps.push(val);
+				}
+			});
+		});
+
+		return props.concat(extraProps.sort());
+	};
+	var csvify = function(tests) {
+		var props = mergeProps(tests);
+		var res = 'name,'+props.join(',') + '\n';
 
 		tests.forEach(function(test) {
 			res += test._id+','+props.map(function(prop) {
@@ -288,6 +306,18 @@ app.internal.get('/digest', function(request, response) {
 
 		return res;
 	};
+	var htmlify = function(tests) {
+		var props = mergeProps(tests);
+		var res = '<html><head><title>Microsoft Parental Analytics</title></head></head><body><br><br><br><center><font face=helvetica><marquee><h1>Welcome to My page on <a href=http://jubii.dk>Internet</a></h1></marquee><br><br><table cellpadding=10 border=1><tr><th>name</th><th>' + props.join('</th><th>') + '</th></tr>';
+
+		tests.forEach(function(test) {
+			res += '<tr><td>' + test._id + '</td><td>' + props.map(function(prop) {
+				return test.value[prop] || '0';
+			}).join('</td><td>') + '</td></tr>';
+		});
+
+		return res + '</table></font></center></body></html>';
+	}
 
 	common.step([
 		function(next) {
@@ -305,6 +335,13 @@ app.internal.get('/digest', function(request, response) {
 			db.abdigest.find(next);
 		},
 		function(doc) {
+			if (request.params.type === 'html') {
+				response.setHeader('content-type','text/html');
+				response.end(htmlify(doc));
+
+				return;	
+			}
+
 			response.setHeader('content-type','text/plain');
 			response.end(csvify(doc));
 		}
