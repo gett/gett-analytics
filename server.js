@@ -324,10 +324,16 @@ app.internal.get('/digest/:type?', function(request, response) {
 			db.abdigest.remove(next);
 		},
 		function(next) {
+			var query = {
+				merged: {$ne:true}
+			};
+
+			if (request.params.type === 'anon') {
+				query.userid = /^anon/;
+			}
+
 			db.analytics.mapReduce(map, reduce, {
-				query: {
-					merged: {$ne:true}
-				},
+				query: query,
 				out: 'abdigest'
 			}, next);
 		},
