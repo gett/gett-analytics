@@ -152,7 +152,6 @@ app.internal.post('/inactive', function(request, response) {
 			db.analytics.find({'tests.name':name}, {events:1, userid:1}, next);
 		},
 		function(users, next) {
-			console.log(users)
 			if (!users.length) {
 				response.ack();
 				return;
