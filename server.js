@@ -286,16 +286,25 @@ app.internal.get('/digest/:type?', function(request, response) {
 	var mergeProps = function(tests) {
 		var props = ['count', 'upload', 'share', 'email', 'signup', 'extView', 'extUpload', 'extSignup'];
 		var extraProps = [];
+		var sorts = {};
 
 		tests.forEach(function(test) {
 			Object.keys(test.value).forEach(function(val) {
-				if (val !== 'accumulated' && val !== 'created' && props.indexOf(val) < 0 && extraProps.indexOf(val) < 0) {
+				if (val === 'accumulated' || val === 'created') {
+					return;
+				}
+
+				sorts[val] = Math.min(sorts[val] || test.created, test.created);
+				
+				if (props.indexOf(val) < 0 && extraProps.indexOf(val) < 0) {					
 					extraProps.push(val);
 				}
 			});
 		});
 
-		return props.concat(extraProps.sort());
+		return props.concat(extraProps.sort(function(a,b) {
+			return sorts[a] - sorts[b];
+		}));
 	};
 	var csvify = function(tests) {
 		var props = mergeProps(tests);
