@@ -252,7 +252,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 
 		this.tests.forEach(function(test) {
 			var trackname = test.name+'.'+test.track;
-			var result = {count:1,accumulated:{}};
+			var result = {count:1,accumulated:{},created:test.created};
 			var real = sub(test.endedevents || events, test.offsetevents);
 
 			for (var event in real) {
@@ -267,6 +267,10 @@ app.internal.get('/digest/:type?', function(request, response) {
 		var res = values.pop();
 		var inc = function(from, to) {
 			for (var event in from) {
+				if (event === 'created') {
+					res.created = Math.min(res.created, from.created);
+					continue;
+				}
 				if (typeof from[event] === 'number') {
 					to[event] = (to[event] || 0) + from[event];				
 				}
@@ -286,7 +290,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 
 		tests.forEach(function(test) {
 			Object.keys(test.value).forEach(function(val) {
-				if (val !== 'accumulated' && props.indexOf(val) < 0 && extraProps.indexOf(val) < 0) {
+				if (val !== 'accumulated' && val !== 'created' && props.indexOf(val) < 0 && extraProps.indexOf(val) < 0) {
 					extraProps.push(val);
 				}
 			});
@@ -345,16 +349,29 @@ app.internal.get('/digest/:type?', function(request, response) {
 		function(next) {
 			db.abdigest.find(next);
 		},
-		function(doc) {
+		function(docs) {
+			var created = {};
+
+			docs.forEach(function(doc) {
+				var id = doc._id.replace(/\.\d+$/, '');
+				var track = parseInt(doc._id.match(/\.(\d+)$/)[1], 10);
+
+				created[id] = created[id] || doc.value.created;
+				doc.value.created = created[id]+track;
+			});
+			docs.sort(function(a, b) {
+				return a.value.created - b.value.created;
+			});
+
 			if (request.params.type === 'html') {
 				response.setHeader('content-type','text/html');
-				response.end(htmlify(doc));
+				response.end(htmlify(docs));
 
 				return;	
 			}
 
 			response.setHeader('content-type','text/plain');
-			response.end(csvify(doc));
+			response.end(csvify(docs));
 		}
 	], response.json);
 });
