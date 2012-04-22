@@ -352,12 +352,12 @@ app.internal.get('/digest/:type?', function(request, response) {
 
 	common.step([
 		function(next) {
-			db.collection(collectionName).findOne(next);
+			db.collection(collectionName).find(next);
 		},
 		function(docs, next) {
 			next = common.once(next);
 
-			if (docs) {
+			if (docs.length) {
 				next(null, docs);
 			}
 
@@ -366,7 +366,13 @@ app.internal.get('/digest/:type?', function(request, response) {
 				out: collectionName
 			}, next);
 		},
-		function(next) {
+		function(docs, next) {
+			if (Array.isArray(docs)) {
+				console.log('cached');
+				next(null, docs);
+				return;
+			}
+
 			db.collection(collectionName).find(next);
 		},
 		function(docs) {
