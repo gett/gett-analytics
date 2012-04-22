@@ -352,7 +352,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 
 	common.step([
 		function(next) {
-			db.collection(collectionName).find(next);
+			db.collection(collectionName).findOne(next);
 		},
 		function(docs, next) {
 			next = common.once(next);
