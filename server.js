@@ -331,31 +331,43 @@ app.internal.get('/digest/:type?', function(request, response) {
 		return res + '</table></font></center></body></html>';
 	}
 
+	var query = {
+		merged: {$ne:true}
+	};
+
+	if (request.query.anon) {
+		query.userid = /^anon/;
+	}
+	if (request.query.condition) {
+		var cond = request.query.condition;
+
+		query['events.'+cond] = {$exists:true};
+	}
+
+	var md5 = function(obj) {
+		return require('crypto').createHash('md5').update(JSON.stringify(obj)).digest('hex');
+	};
+
+	var collectionName = 'abdigest'+md5(query);
+
 	common.step([
 		function(next) {
-			db.abdigest.remove(next);
+			db.collection(collectionName).find(next);
 		},
-		function(next) {
-			var query = {
-				merged: {$ne:true}
-			};
+		function(docs, next) {
+			next = common.once(next);
 
-			if (request.query.anon) {
-				query.userid = /^anon/;
-			}
-			if (request.query.condition) {
-				var cond = request.query.condition;
-
-				query['events.'+cond] = {$exists:true};
+			if (docs) {
+				next(null, docs);
 			}
 
 			db.analytics.mapReduce(map, reduce, {
 				query: query,
-				out: 'abdigest'
+				out: collectionName
 			}, next);
 		},
 		function(next) {
-			db.abdigest.find(next);
+			db.collection(collectionName).find(next);
 		},
 		function(docs) {
 			var created = {};
