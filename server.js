@@ -6,6 +6,7 @@ var analytics = require('analytics')(services);
 var root = require('root');
 var app = root();
 
+var lastUpdate = {};
 var now = function() {
 	return (Date.now() / 1000) | 0;
 };
@@ -361,14 +362,19 @@ app.internal.get('/digest/:type?', function(request, response) {
 				next(null, docs);
 			}
 
+			if (Date.now() - (lastUpdate[collectionName] || 0) < 60000) {
+				return;
+			}
+
 			db.analytics.mapReduce(map, reduce, {
 				query: query,
 				out: collectionName
 			}, next);
+
+			lastUpdate[collectionName] = Date.now();
 		},
 		function(docs, next) {
 			if (Array.isArray(docs)) {
-				console.log('cached');
 				next(null, docs);
 				return;
 			}
