@@ -291,7 +291,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 
 		tests.forEach(function(test) {
 			Object.keys(test.value).forEach(function(val) {
-				if (!val || val === 'accumulated' || val === 'created') {
+				if (!val || val === 'undefined' || val === 'accumulated' || val === 'created') {
 					return;
 				}
 
@@ -384,6 +384,9 @@ app.internal.get('/digest/:type?', function(request, response) {
 		function(docs) {
 			var created = {};
 
+			docs = docs.filter(function(doc) {
+				return doc._id !== 'null.null';
+			});
 			docs.forEach(function(doc) {
 				var id = doc._id.replace(/\.\d+$/, '');
 				var track = parseInt((doc._id.match(/\.(\d+)$/) || [null, 0])[1], 10);
