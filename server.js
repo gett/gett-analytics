@@ -386,7 +386,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 
 			docs.forEach(function(doc) {
 				var id = doc._id.replace(/\.\d+$/, '');
-				var track = parseInt(doc._id.match(/\.(\d+)$/)[1], 10);
+				var track = parseInt((doc._id.match(/\.(\d+)$/) || [null, 0])[1], 10);
 
 				created[id] = created[id] || doc.value.created;
 				doc.value.created = created[id]+track;
