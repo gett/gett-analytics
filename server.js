@@ -291,7 +291,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 
 		tests.forEach(function(test) {
 			Object.keys(test.value).forEach(function(val) {
-				if (val === 'accumulated' || val === 'created') {
+				if (!val || val === 'accumulated' || val === 'created') {
 					return;
 				}
 
