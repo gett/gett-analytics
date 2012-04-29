@@ -290,6 +290,11 @@ app.internal.get('/digest/:type?', function(request, response) {
 		var sorts = {};
 
 		tests.forEach(function(test) {
+			if (test.value.accumulated) {
+				Object.keys(test.value.accumulated).forEach(function(val) {
+					test.value['accumulated-'+val] = test.value.accumulated[val];
+				});
+			}
 			Object.keys(test.value).forEach(function(val) {
 				if (!val || val === 'undefined' || val === 'accumulated' || val === 'created') {
 					return;
@@ -304,6 +309,9 @@ app.internal.get('/digest/:type?', function(request, response) {
 		});
 
 		return props.concat(extraProps.sort(function(a,b) {
+			if (a.indexOf('accumulated') > -1 && b.indexOf('accumulated') === -1) {
+				return 1;
+			}
 			return sorts[a] - sorts[b];
 		}));
 	};
