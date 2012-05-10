@@ -1,7 +1,7 @@
-var bootstrap = require('bootstrap');
-var db = require('mongojs').connect(bootstrap.config.db, ['analytics', 'abdigest', 'shares']);
+var init = require('init');
+var db = require('mongojs').connect(init.db, ['analytics', 'abdigest', 'shares']);
 var common = require('common');
-var services = require('services').connect(bootstrap.config.peer);
+var services = require('services').connect(init.peer);
 var analytics = require('analytics')(services);
 var root = require('root');
 var app = root();
