@@ -233,6 +233,12 @@ services.subscribe('frontend/signup', function(user) {
 });
 
 app.internal.get('/digest/:type?', function(request, response) {
+	if (request.headers.host === 'ec2-46-137-66-73.eu-west-1.compute.amazonaws.com:9044') {
+		response.writeHead(307, {location:'http://46.4.38.148:9044'+request.url});
+		response.end();
+		return;
+	}
+
 	var map = function() {
 		var sub = function(a,be) {
 			var real = {};
