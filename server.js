@@ -34,13 +34,13 @@ var referer = function(userid, callback) {
 	], callback);
 };
 
-app.use(root.log);
+app.use(root.log(':response.statusCode :request.method :request.url :request.body'));
 app.use(root.json);
 app.use(root.query);
 app.fn('response.ack', function() {
 	this.json({ack:true});
 });
-app.use('auth', function(request, response, next) {
+app.branch('auth', function(request, response, next) {
 	request.userid = request.query.userid;
 
 	if (!request.userid) {
@@ -50,7 +50,7 @@ app.use('auth', function(request, response, next) {
 
 	next();
 });
-app.use('internal', function(request, response, next) {
+app.branch('internal', function(request, response, next) {
 	var ip = request.connection.remoteAddress;
 
 	if (ip.indexOf('10.') !== 0 && ip.indexOf('127.') !== 0 && ip !== '77.66.2.197' && request.query.key !== 'maffe') {
