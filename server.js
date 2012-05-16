@@ -377,6 +377,8 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 
 	var cacheKey = 'digest'+md5(query);
 
+	response.connection.setTimeout(30*60*1000);
+
 	common.step([
 		function(next) {
 			var cache = digestCache[cacheKey];
