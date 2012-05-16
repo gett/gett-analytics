@@ -415,6 +415,7 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 
 					lastQuery = Date.now();
 					runQuery();
+					return;
 				}
 				stack.push(callback);
 			};
