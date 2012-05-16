@@ -1,5 +1,13 @@
 var init = require('init');
 var db = require('mongojs').connect(init.db, ['analytics', 'abdigest', 'shares']);
+var digest = !init.production? db : require('mongojs').connect({
+	db: 'api', // we freestyle this conf as we need to make sure it does not talk to the master
+	collections: ['analytics', 'abdigest', 'shares'],
+	replSet: {
+		slaveOk: true,
+		members: ['127.0.0.1']
+	}
+});
 var common = require('common');
 var services = require('services').connect(init.peer);
 var analytics = require('analytics')(services);
@@ -40,6 +48,12 @@ app.use(root.query);
 app.fn('response.ack', function() {
 	this.json({ack:true});
 });
+
+app.error(function(err, req, res) {
+	if (err) return res.json(err);
+	res.json(404, 'Do not know what you are looking for');
+});
+
 app.branch('auth', function(request, response, next) {
 	request.userid = request.query.userid;
 
@@ -60,7 +74,7 @@ app.branch('internal', function(request, response, next) {
 	next();
 });
 
-app.auth.get('/tests', function(request, response) {
+app.auth.get('/tests', function(request, response, onerror) {
 	common.step([
 		function(next) {
 			db.analytics.findOne({userid:request.userid}, {'tests.endedevents':1, 'tests.name':1, 'tests.track':1}, next);
@@ -79,10 +93,10 @@ app.auth.get('/tests', function(request, response) {
 
 			response.json(res);
 		}
-	], response.json);
+	], onerror);
 });
 
-app.auth.post('/tests/create', function(request, response) {
+app.auth.post('/tests/create', function(request, response, onerror) {
 	var name = request.json.name;
 	var track = request.json.track;
 
@@ -101,10 +115,10 @@ app.auth.post('/tests/create', function(request, response) {
 		function() {
 			response.ack();
 		}
-	], response.json);
+	], onerror);
 });
 
-app.auth.post('/event', function(request, response) {
+app.auth.post('/event', function(request, response, onerror) {
 	common.step([
 		function(next) {
 			var map = {};
@@ -115,14 +129,14 @@ app.auth.post('/event', function(request, response) {
 		function() {
 			response.ack();
 		}
-	], response.json);
+	], onerror);
 });
 
 /*app.auth.post('/user/update', function(request, response) {
 	db.analytics.update({userid:request.userid}, {$set:request.json}, response.ack.bind(response));
 });*/
 
-app.auth.post('/merge', function(request, response) {
+app.auth.post('/merge', function(request, response, onerror) {
 	var mergeuserid = request.json.mergeuserid;
 	var userid = request.userid;
 
@@ -142,10 +156,10 @@ app.auth.post('/merge', function(request, response) {
 		function() {
 			response.ack();
 		}
-	], response.json);
+	], onerror);
 });
 
-app.internal.post('/inactive', function(request, response) {
+app.internal.post('/inactive', function(request, response, onerror) {
 	var name = request.json.name;
 
 	common.step([
@@ -165,7 +179,7 @@ app.internal.post('/inactive', function(request, response) {
 		function() {
 			response.ack();
 		}
-	], response.json);
+	], onerror);
 });
 
 services.subscribe('blob/put', {readyState:'transferring'}, function(file) {
@@ -232,7 +246,7 @@ services.subscribe('frontend/signup', function(user) {
 	}, 5000);
 });
 
-app.internal.get('/digest/:type?', function(request, response) {
+app.internal.get('/digest/:type?', function(request, response, onerror) {
 	if (request.headers.host === 'ec2-46-137-66-73.eu-west-1.compute.amazonaws.com:9044') {
 		response.writeHead(307, {location:'http://46.4.38.148:9044'+request.url});
 		response.end();
@@ -367,7 +381,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 
 	common.step([
 		function(next) {
-			db.collection(collectionName).find(next);
+			digest.collection(collectionName).find(next);
 		},
 		function(docs, next) {
 			next = common.once(next);
@@ -380,7 +394,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 				return;
 			}
 
-			db.analytics.mapReduce(map, reduce, {
+			digest.analytics.mapReduce(map, reduce, {
 				query: query,
 				out: collectionName
 			}, next);
@@ -393,7 +407,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 				return;
 			}
 
-			db.collection(collectionName).find(next);
+			digest.collection(collectionName).find(next);
 		},
 		function(docs) {
 			var created = {};
@@ -422,7 +436,7 @@ app.internal.get('/digest/:type?', function(request, response) {
 			response.setHeader('content-type','text/plain');
 			response.end(csvify(docs));
 		}
-	], response.json);
+	], onerror);
 });
 
 app.listen(9044, function() {
