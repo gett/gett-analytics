@@ -1,18 +1,15 @@
 var init = require('init');
-var db = require('mongojs').connect(init.db, ['analytics', 'abdigest', 'shares']);
-var digest = process.argv.indexOf('--digest') === -1 ? db : require('mongojs').connect({
-	db: 'api', // we freestyle this conf as we need to make sure it does not talk to the master
-	collections: ['analytics', 'abdigest', 'shares'],
-	replSet: {
-		slaveOk: true,
-		members: ['127.0.0.1']
-	}
-});
+var digest = process.argv.indexOf('--digest') > -1;
+var db = require('mongojs').connect(digest ? 'api' : init.db, ['analytics', 'abdigest', 'shares']);
 var common = require('common');
 var services = require('services').connect(init.peer);
 var analytics = require('analytics')(services);
 var root = require('root');
 var app = root();
+
+if (digest) {
+	db.client.slaveOk = true;
+}
 
 var lastUpdate = {};
 var now = function() {
@@ -381,7 +378,7 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 
 	common.step([
 		function(next) {
-			digest.collection(collectionName).find(next);
+			db.collection(collectionName).find(next);
 		},
 		function(docs, next) {
 			next = common.once(next);
@@ -394,7 +391,7 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 				return;
 			}
 
-			digest.analytics.mapReduce(map, reduce, {
+			db.analytics.mapReduce(map, reduce, {
 				query: query,
 				out: collectionName
 			}, next);
@@ -407,7 +404,7 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 				return;
 			}
 
-			digest.collection(collectionName).find(next);
+			db.collection(collectionName).find(next);
 		},
 		function(docs) {
 			var created = {};
