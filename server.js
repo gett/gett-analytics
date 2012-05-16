@@ -384,23 +384,43 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 			var cache = digestCache[cacheKey];
 
 			if (cache) {
-				cache.get(next);
+				cache(next);
 				return;
 			}
 
-			cache = digestCache[cacheKey] = common.future();
-			cache.get(next);
+			var stack = [];
+			var lastQuery = Date.now();
+			var docs;
 
-			setTimeout(function() {
-				delete digestCache[cacheKey];
-			}, 10*60*1000);
+			var runQuery = function() {
+				db.analytics.mapReduce(map, reduce, {
+					query: query,
+					out: {inline:true}
+				}, function(err, result) {
+					docs = result;
 
-			db.analytics.mapReduce(map, reduce, {
-				query: query,
-				out: {inline:true}
-			}, function(err, docs) {
-				cache.put(err, docs);
-			});
+					while (stack.length) {
+						stack.shift()(null, docs);
+					}
+				});
+			};
+
+			digestCache[cacheKey] = cache = function(callback) {
+				if (docs) {
+					callback(null, docs);
+
+					if (Date.now() - lastQuery < 10*60*1000) {
+						return;
+					}
+
+					lastQuery = Date.now();
+					runQuery();
+				}
+				stack.push(callback);
+			};
+
+			cache(next);
+			runQuery();
 		},
 		function(docs) {
 			var created = {};
