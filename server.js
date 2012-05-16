@@ -1,6 +1,6 @@
 var init = require('init');
 var db = require('mongojs').connect(init.db, ['analytics', 'abdigest', 'shares']);
-var digest = !init.production? db : require('mongojs').connect({
+var digest = process.argv.indexOf('--digest') === -1 ? db : require('mongojs').connect({
 	db: 'api', // we freestyle this conf as we need to make sure it does not talk to the master
 	collections: ['analytics', 'abdigest', 'shares'],
 	replSet: {
