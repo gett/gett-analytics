@@ -11,7 +11,6 @@ if (digest) {
 	db.client.slaveOk = true;
 }
 
-var lastUpdate = {};
 var now = function() {
 	return (Date.now() / 1000) | 0;
 };
@@ -243,6 +242,8 @@ services.subscribe('frontend/signup', function(user) {
 	}, 5000);
 });
 
+var digestCache = {};
+
 app.internal.get('/digest/:type?', function(request, response, onerror) {
 	if (request.headers.host === 'ec2-46-137-66-73.eu-west-1.compute.amazonaws.com:9044') {
 		response.writeHead(307, {location:'http://46.4.38.148:9044'+request.url});
@@ -374,42 +375,30 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 		return require('crypto').createHash('md5').update(JSON.stringify(obj)).digest('hex');
 	};
 
-	var collectionName = 'abdigest'+md5(query);
+	var cacheKey = 'digest'+md5(query);
 
 	common.step([
 		function(next) {
-			db.collection(collectionName).find(next);
-		},
-		function(docs, next) {
-			next = common.once(next);
+			var cache = digestCache[cacheKey];
 
-			if (docs.length) {
-				next(null, docs);
-			}
-
-			if (Date.now() - (lastUpdate[collectionName] || 0) < 60000) {
+			if (cache) {
+				cache.get(next);
 				return;
 			}
+
+			cache = digestCache[cacheKey] = common.future();
+			cache.get(next);
+
+			setTimeout(function() {
+				delete digestCache[cacheKey];
+			}, 10*60*1000);
 
 			db.analytics.mapReduce(map, reduce, {
 				query: query,
-				out: collectionName
-			}, function(err) {
-				if (err) {
-					console.error(err.stack);
-				}
-				next(err);
+				out: {inline:true}
+			}, function(err, docs) {
+				cache.put(err, docs);
 			});
-
-			lastUpdate[collectionName] = Date.now();
-		},
-		function(docs, next) {
-			if (Array.isArray(docs)) {
-				next(null, docs);
-				return;
-			}
-
-			db.collection(collectionName).find(next);
 		},
 		function(docs) {
 			var created = {};
