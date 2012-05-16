@@ -394,7 +394,12 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 			db.analytics.mapReduce(map, reduce, {
 				query: query,
 				out: collectionName
-			}, next);
+			}, function(err) {
+				if (err) {
+					console.error(err.stack);
+				}
+				next(err);
+			});
 
 			lastUpdate[collectionName] = Date.now();
 		},
