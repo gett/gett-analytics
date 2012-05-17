@@ -347,7 +347,7 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 	};
 	var htmlify = function(tests) {
 		var props = mergeProps(tests);
-		var res = '<html><head><title>Microsoft Parental Analytics</title></head></head><body><br><br><br><center><font face=helvetica><marquee><h1>Welcome to My page on <a href=http://jubii.dk>Internet</a></h1></marquee><br><br><table cellpadding=10 border=1><tr><th>name</th><th>' + props.join('</th><th>') + '</th></tr>';
+		var res = '<html><head><title>Microsoft Parental Analytics</title></head></head><body><br><br><br><center><font face=helvetica><marquee><h1>Welcome to My page on <a href="https://docs.google.com/spreadsheet/ccc?key=0AnybHzeNDQU1dFc4dlFhMVhtQ3EtdUliMXNUZ215VGc&pli=1#gid=0">Internet</a></h1></marquee><br><br><table cellpadding=10 border=1><tr><th>name</th><th>' + props.join('</th><th>') + '</th></tr>';
 
 		tests.forEach(function(test) {
 			res += '<tr><td>' + test._id + '</td><td>' + props.map(function(prop) {
