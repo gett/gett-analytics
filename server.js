@@ -122,7 +122,12 @@ app.auth.post('/tests/track', function(request, response, onerror) {
 
 	common.step([
 		function(next) {
-			db.analytics.findOne({userid:request.userid}, next);
+			db.analytics.findAndModify({
+				query: {userid:request.userid},
+				update: {$set:{userid:request.userid}},
+				new: true,
+				upsert: true
+			}, next);
 		},
 		function(user) {
 			var track;
