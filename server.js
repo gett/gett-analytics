@@ -122,21 +122,19 @@ app.auth.post('/tests/track', function(request, response, onerror) {
 
 	common.step([
 		function(next) {
-			db.analytics.findOne({
-				userid: request.userid,
-				'tests.name': name
-			}, {
-				'tests.name': 1,
-				'tests.track': 1,
-				events: 1
-			}, next);
+			db.analytics.findOne({userid:request.userid}, next);
 		},
 		function(user) {
 			var track;
 
-			if (user) {
-				track = user.tests[0].track;
-			} else {
+			(user.tests || []).some(function(test) {
+				if (test.name === name) {
+					track = test.track;
+					return true;
+				}
+			});
+
+			if (!track) {
 				track = Math.floor(Math.random() * count)+1;
 				db.analytics.update({
 					userid: request.userid,
