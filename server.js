@@ -114,6 +114,48 @@ app.auth.post('/tests/create', function(request, response, onerror) {
 	], onerror);
 });
 
+app.auth.post('/tests/track', function(request, response, onerror) {
+	var name = request.json.name;
+	var count = request.json.count;
+
+	if (!name || !count) return onerror();
+
+	common.step([
+		function(next) {
+			db.analytics.findOne({
+				userid: request.userid,
+				'tests.name': name
+			}, {
+				'tests.name': 1,
+				'tests.track': 1,
+				events: 1
+			}, next);
+		},
+		function(user) {
+			var track;
+
+			if (user) {
+				track = user.tests[0].track;
+			} else {
+				track = Math.floor(Math.random() * count)+1;
+				db.analytics.update({
+					userid: request.userid,
+					'tests.name': {$ne:name}
+				}, {
+					$push: {tests: {
+						name: name,
+						track: track,
+						created: now(),
+						offsetevents: user.events || {}
+					}}
+				});
+			}
+
+			response.json({name:name, track:track});
+		}
+	], onerror);
+});
+
 app.auth.post('/event', function(request, response, onerror) {
 	common.step([
 		function(next) {
