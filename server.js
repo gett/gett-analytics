@@ -1,6 +1,6 @@
 var init = require('init');
 var digest = process.argv.indexOf('--digest') > -1;
-var db = require('mongojs').connect(digest ? 'api' : init.db, ['analytics', 'abdigest', 'shares']);
+var db = require('mongojs').connect(digest ? 'api' : init.db, ['analytics', 'abdigest', 'shares', 'users']);
 var common = require('common');
 var services = require('services').connect(init.peer);
 var analytics = require('analytics')(services);
@@ -249,7 +249,7 @@ services.subscribe('blob/put', {readyState:'transferring'}, function(file) {
 			if (!refUserid) {
 				return;
 			}
-			
+
 			analytics(refUserid).post('/event', {name:'extUpload'});
 		}
 	]);
@@ -335,7 +335,7 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 					continue;
 				}
 				if (typeof from[event] === 'number') {
-					to[event] = (to[event] || 0) + from[event];				
+					to[event] = (to[event] || 0) + from[event];
 				}
 			}
 		};
@@ -364,8 +364,8 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 				}
 
 				sorts[val] = Math.min(sorts[val] || test.created, test.created);
-				
-				if (props.indexOf(val) < 0 && extraProps.indexOf(val) < 0) {					
+
+				if (props.indexOf(val) < 0 && extraProps.indexOf(val) < 0) {
 					extraProps.push(val);
 				}
 			});
@@ -489,7 +489,7 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 				response.setHeader('content-type','text/html');
 				response.end(htmlify(docs));
 
-				return;	
+				return;
 			}
 
 			response.setHeader('content-type','text/plain');
@@ -497,6 +497,30 @@ app.internal.get('/digest/:type?', function(request, response, onerror) {
 		}
 	], onerror);
 });
+
+app.internal.get('/users/:test', function(request, response, onerror) {
+	var tests = db.analytics.find({'tests.name':request.params.test});
+	var digest = {};
+
+	tests.next(function loop(err, val) {
+		if (err) return onerror(err);
+		if (!val) return response.json(digest);
+
+		var test = val.tests.reduce(function(prev, val) {
+			return prev.name === request.params.name ? prev : val;
+		});
+
+		var key = test.name+'.'+test.track;
+
+		digest[key] = digest[key] || {};
+		db.users.findOne({userid:val.mergedto || val.userid}, {type:1}, function(err, user) {
+			if (err) return onerror(err);
+			if (user) digest[key][user.type] = (digest[key][user.type] || 0) + 1;
+			tests.next(loop);
+		});
+	});
+});
+
 
 app.listen(9044, function() {
 	services.join({name:'analytics', internal:app.address().port})
