@@ -517,7 +517,7 @@ app.internal.get('/users/:test', function(request, response, onerror) {
 		if (visited[userid]) return tests.next(loop);
 
 		visited[userid] = true;
-		digest[key] = digest[key] || {types:{}, stats:{downloads:0,files:0,storage:0}};
+		digest[key] = digest[key] || {types:{}, stats:{downloads:0,files:0,storage:0}, premiumstats:{downloads:0,files:0,storage:0}};
 
 		var get = function(prop) {
 			return function(doc) {
@@ -532,12 +532,21 @@ app.internal.get('/users/:test', function(request, response, onerror) {
 			if (err) return onerror(err);
 			if (user) digest[key].types[user.type] = (digest[key].types[user.type] || 0) + 1;
 
+			if (!user) return tests.next(loop);
+
 			db.files.find({userid:userid, readystate:'uploaded'}, function(err, files) {
 				if (err) return onerror(err);
 
 				digest[key].stats.downloads += files.map(get('downloads')).reduce(sum, 0);
 				digest[key].stats.storage += files.map(get('size')).reduce(sum, 0);
 				digest[key].stats.files += files.length;
+
+				if (user.type !== 'free' && user.type !== 'anon') {
+					digest[key].premiumstats.downloads += files.map(get('downloads')).reduce(sum, 0);
+					digest[key].premiumstats.storage += files.map(get('size')).reduce(sum, 0);
+					digest[key].premiumstats.files += files.length;
+				}
+
 				tests.next(loop);
 			});
 		});
