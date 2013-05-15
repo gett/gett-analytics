@@ -528,7 +528,7 @@ app.internal.get('/users/:test', function(request, response, onerror) {
 			return result + val;
 		};
 
-		db.users.findOne({userid:userid}, {type:1}, function(err, user) {
+		db.users.findOne({userid:userid}, {type:1, created:1}, function(err, user) {
 			if (err) return onerror(err);
 			if (user && user.created < 1368554099) return tests.next(loop);
 			if (user) digest[key].types[user.type] = (digest[key].types[user.type] || 0) + 1;
