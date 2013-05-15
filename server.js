@@ -542,6 +542,7 @@ app.internal.get('/users/:test', function(request, response, onerror) {
 				digest[key].stats.files += files.length;
 
 				if (user.type !== 'free' && user.type !== 'anon') {
+					digest[key].premiumstats.userids = (digest[key].premiumstats.userids || []).concat(userid);
 					digest[key].premiumstats.downloads += files.map(get('downloads')).reduce(sum, 0);
 					digest[key].premiumstats.storage += files.map(get('size')).reduce(sum, 0);
 					digest[key].premiumstats.files += files.length;
