@@ -503,6 +503,7 @@ app.internal.get('/users/:test', function(request, response, onerror) {
 	var digest = {};
 	var visited = {};
 
+	request.connection.setTimeout(0);
 	tests.next(function loop(err, val) {
 		if (err) return onerror(err);
 		if (!val) return response.json(digest);
